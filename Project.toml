@@ -1,0 +1,8 @@
+name = "PMIx"
+uuid = "d3b1dac9-d758-4579-85ff-39f286323290"
+authors = ["Valentin Churavy <v.churavy@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+PMIx_jll = "32165bc3-0280-59bc-8c0b-c33b6203efab"
