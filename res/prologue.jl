@@ -1,5 +1,13 @@
 using PMIx_jll
 
+function __init__()
+    # Required for PMIx relocateable binaries
+    # TODO: this should be done in PMIx_jll package
+    # https://github.com/JuliaPackaging/Yggdrasil/issues/390
+    ENV["PMIX_INSTALL_PREFIX"] = PMIx_jll.artifact_dir
+    nothing
+end
+
 const pid_t = Cint
 
 const __time_t = Clong
