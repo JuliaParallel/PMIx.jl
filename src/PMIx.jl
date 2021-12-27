@@ -85,10 +85,15 @@ function version()
     return Base.unsafe_string(API.PMIx_Get_version())
 end
 
-# TODO: Parameters
-function init()
+function init(info=nothing)
+    if info === nothing
+        info = C_NULL
+        len = 0
+    else
+        len = lenght(info)
+    end
     r_proc = Ref{API.pmix_proc_t}()
-    @check API.PMIx_Init(r_proc, C_NULL, 0)
+    @check API.PMIx_Init(r_proc, info, len)
     return r_proc[]
 end
 
