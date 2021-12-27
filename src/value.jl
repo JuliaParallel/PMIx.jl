@@ -16,13 +16,21 @@ function destruct(value)
     return nothing
 end
 
-# function unload(value)
-#     r_value = Ref{API.pmix_value_t}(value)
-#     data = Ref{Ptr{Cvoid}}()
-#     sz = Ref{Csize_t}()
-#     @check API.pmix_value_unload(r_value, data, sz)
-#     return (data[], sz[])
-# end
+"""
+    unload(value)
+
+Memory will be allocated and the data will be in the pmix_value_t returned - the source
+pmix_value_t will not be altered.
+
+The user must call `Libc.free` on the returned pointer, to release the memory.
+"""
+function unload(value)
+    r_value = Ref{API.pmix_value_t}(value)
+    data = Ref{Ptr{Cvoid}}()
+    sz = Ref{Csize_t}()
+    @check API.pmix_value_unload(r_value, data, sz)
+    return (data[], sz[])
+end
 
 function load(value, data, type)
     r_value = Ref{API.pmix_value_t}(value)
@@ -34,6 +42,15 @@ function Value(data, type)
     value = ZeroValue()
     value = load(value, Ref(data), type)
     return value
+end
+
+function Value(data::String, type)
+    @assert type == API.PMIX_STRING
+    value = ZeroValue()
+    GC.@preserve data begin
+        cstr = Base.unsafe_convert(Ptr{Cchar}, data)
+        return load(value, cstr, type)
+    end
 end
 
 # function xfer()
@@ -135,4 +152,12 @@ function get_number(value::API.pmix_value_t)
         return @get_number(Float64, PMIX_DOUBLE, value)
     end
     error("Unkown numeric typed $(value.type)")
+end
+
+function convert(::Type{String}, value::API.pmix_value_t)
+    @assert value.type == API.PMIX_STRING
+    data, len = unload(value)
+    str = Base.unsafe_string(convert(Ptr{Cchar}, data), len)
+    Libc.free(data)
+    return str
 end

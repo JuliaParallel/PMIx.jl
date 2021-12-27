@@ -47,8 +47,7 @@ end
 function Info(key, value, flags = 0)
     r_key = Ref{API.pmix_key_t}()
     GC.@preserve r_key key begin
-        cstr = Base.unsafe_convert(Cstring, key) # ensure null termination
-        p_src = convert(Ptr{Cchar}, cstr)
+        p_src = Base.unsafe_convert(Ptr{Cchar}, key)
         p_dst = Base.unsafe_convert(Ptr{Cchar}, r_key)
         pmix_strncopy(p_dst, p_src, API.PMIX_MAX_KEYLEN)
     end
@@ -114,7 +113,7 @@ function get(proc, key, info=nothing)
         info = C_NULL
         len = 0
     else 
-        len= length(info)
+        len = length(info)
     end
     r_ptr = Ref{Ptr{API.pmix_value_t}}()
     @check API.PMIx_Get(Ref(proc), key, info, len, r_ptr)

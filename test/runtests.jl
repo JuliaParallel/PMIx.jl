@@ -42,6 +42,9 @@ end
 
     optional = PMIx.Value(false, PMIx.API.PMIX_BOOL)
     @test !convert(Bool, optional)
+
+    str = PMIx.Value("hello", PMIx.API.PMIX_STRING)
+    @test convert(String, str) == "hello"
 end
 
 @testset "Job size" begin
