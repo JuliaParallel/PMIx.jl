@@ -33,10 +33,12 @@ struct timeval
     tv_usec::__suseconds_t
 end
 
+# Sigh: Inline definition
 function pmix_strncpy(dest, src, len)
     ccall((:pmix_strncpy, libpmix), Cvoid, (Ptr{Cchar}, Ptr{Cchar}, Csize_t), dest, src, len)
 end
 
+# Sigh: Inline definition
 function pmix_nslen(src)
     ccall((:pmix_nslen, libpmix), Csize_t, (Ptr{Cchar},), src)
 end
