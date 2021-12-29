@@ -10,20 +10,37 @@ if !haskey(ENV, "PRTE_LAUNCHED")
     end
 
     @testset "Examples" begin
-        for file in ["client.jl",]
+        examples = [
+            ("client.jl", 2),
+            ("dynamic.jl", 1),
+        ]
+        for (file, np) in examples
             example = realpath(joinpath(@__DIR__, "..", "examples", file))
             prrte_jll.prterun() do prterun
-                cmd = `$prterun -np 2 $(Base.julia_cmd()) $example`
-                @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+                cmd = `$prterun -np $np $(Base.julia_cmd()) $example`
+                @testset "Example $file" begin
+                    @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+                end
             end
         end
 
-        for file in ["launcher.jl", "dynamic.jl"]
-            example = realpath(joinpath(@__DIR__, "..", "examples", file))
-            prrte_jll.prterun() do prterun
-                cmd = `$prterun -np 1 $(Base.julia_cmd()) $example`
-                @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+        examples = [
+            "launcher.jl",
+        ]
+        # Start a PRTE session
+        prte = prrte_jll.prte() do prte
+            run(`$prte`, wait=false)
+        end
+        try
+            for file in examples
+                example = realpath(joinpath(@__DIR__, "..", "examples", file))
+                cmd = `$(Base.julia_cmd()) $example`
+                @testset "Example $file" begin
+                    @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+                end
             end
+        finally
+            kill(prte)
         end
     end
 

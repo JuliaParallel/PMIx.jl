@@ -31,7 +31,7 @@ function main()
                 cmd.exec,
                 String[],
                 pwd(),
-                2,
+                1,
                 PMIx.API.pmix_info_t[],
             )
         ]
@@ -48,7 +48,7 @@ function main()
         @info "Client: Foreign job size" ns=nspace(myproc) rank = myproc.rank nprocs_foreign
 
         # get a proc-specific value
-        tmp = let proc = PMIx.Proc(nspace_foreign, 1)
+        tmp = let proc = PMIx.Proc(nspace_foreign, 0)
             value = PMIx.get(proc, PMIx.API.PMIX_LOCAL_RANK)
             PMIx.get_number(value)
         end
