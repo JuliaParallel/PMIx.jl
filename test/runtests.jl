@@ -18,7 +18,7 @@ if !haskey(ENV, "PRTE_LAUNCHED")
             end
         end
 
-        for file in ["launcher.jl"]
+        for file in ["launcher.jl", "dynamic.jl"]
             example = realpath(joinpath(@__DIR__, "..", "examples", file))
             prrte_jll.prterun() do prterun
                 cmd = `$prterun -np 1 $(Base.julia_cmd()) $example`

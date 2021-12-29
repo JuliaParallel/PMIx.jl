@@ -195,13 +195,17 @@ function Base.cconvert(::Type{API.pmix_app_t}, app::App)
 end
 
 function Base.unsafe_convert(::Type{API.pmix_app_t}, app::CApp)
+    argv = isempty(app.argv) ? C_NULL : Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.argv)
+    env = isempty(app.env) ? C_NULL : Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.env)
+    info = isempty(app.app.info) ? C_NULL : Base.unsafe_convert(Ptr{API.pmix_info_t}, app.app.info)
+
     API.pmix_app_t(
         Base.unsafe_convert(Ptr{Cchar}, app.app.cmd),
-        Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.argv),
-        Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.env),
+        argv,
+        env,
         Base.unsafe_convert(Ptr{Cchar}, app.app.cwd),
         app.app.maxprocs,
-        Base.unsafe_convert(Ptr{API.pmix_info_t}, app.app.info),
+        info,
         length(app.app.info)
     )
 end
