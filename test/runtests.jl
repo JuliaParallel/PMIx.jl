@@ -10,10 +10,20 @@ if !haskey(ENV, "PRTE_LAUNCHED")
     end
 
     @testset "Examples" begin
-        example = realpath(joinpath(@__DIR__, "..", "examples", "client.jl"))
-        prrte_jll.prterun() do prterun
-            cmd = `$prterun -np 2 $(Base.julia_cmd()) $example`
-            @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+        for file in ["client.jl",]
+            example = realpath(joinpath(@__DIR__, "..", "examples", file))
+            prrte_jll.prterun() do prterun
+                cmd = `$prterun -np 2 $(Base.julia_cmd()) $example`
+                @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+            end
+        end
+
+        for file in ["launcher.jl"]
+            example = realpath(joinpath(@__DIR__, "..", "examples", file))
+            prrte_jll.prterun() do prterun
+                cmd = `$prterun -np 1 $(Base.julia_cmd()) $example`
+                @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+            end
         end
     end
 

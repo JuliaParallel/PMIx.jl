@@ -90,7 +90,7 @@ function init(info=nothing)
         info = C_NULL
         len = 0
     else
-        len = lenght(info)
+        len = length(info)
     end
     r_proc = Ref{API.pmix_proc_t}()
     @check API.PMIx_Init(r_proc, info, len)
@@ -148,5 +148,95 @@ end
 # 9. Event Notification
 # 10. Data Packing and Unpacking
 # 11. Process Management
+
+struct App
+    cmd::String
+    argv::Vector{String}
+    env::Vector{String}
+    cwd::String
+    maxprocs::Cint
+    info::Vector{API.pmix_info_t}
+end
+
+# Holds the temporary data we need to allocate
+struct CApp
+    argv::Vector{Ptr{Cchar}} # null-terminated
+    env::Vector{Ptr{Cchar}} # null-terminated
+    app::App
+end
+
+function Base.cconvert(::Type{API.pmix_app_t}, app::App)
+    argv = map(s->Base.unsafe_convert(Ptr{Cchar}, s), app.argv)
+    env = map(s->Base.unsafe_convert(Ptr{Cchar}, s), app.env)
+    push!(argv, C_NULL)
+    push!(env, C_NULL)
+    return CApp(argv, env, app)
+end
+
+function Base.unsafe_convert(::Type{API.pmix_app_t}, app::CApp)
+    API.pmix_app_t(
+        Base.unsafe_convert(Ptr{Cchar}, app.app.cmd),
+        Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.argv),
+        Base.unsafe_convert(Ptr{Ptr{Cchar}}, app.env),
+        Base.unsafe_convert(Ptr{Cchar}, app.app.cwd),
+        app.app.maxprocs,
+        Base.unsafe_convert(Ptr{API.pmix_info_t}, app.app.info),
+        length(app.app.info)
+    )
+end
+
+function spawn(app::App, job_info=nothing)
+    if job_info === nothing
+        job_info = C_NULL
+        len = 0
+    else
+        len = length(job_info)
+    end
+    capp = Base.cconvert(API.pmix_app_t, app)
+    nspace = Ref{API.pmix_nspace_t}()
+    GC.@preserve capp app begin
+        r_app = Ref(Base.unsafe_convert(API.pmix_app_t, capp))
+        @check API.PMIx_Spawn(job_info, len, r_app, 1, nspace)
+    end
+    GC.@preserve nspace begin
+        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, nspace))
+    end
+end
+
+function spawn(apps::Vector{App}, job_info=nothing)
+    if job_info === nothing
+        job_info = C_NULL
+        len = 0
+    else
+        len = length(job_info)
+    end
+    capps = map(app->Base.cconvert(API.pmix_app_t, app), apps)
+    nspace = Ref{API.pmix_nspace_t}()
+    GC.@preserve capps apps begin
+        _apps = map(capp->Base.unsafe_convert(API.pmix_app_t, capp), capps)
+        @check API.PMIx_Spawn(job_info, len, _apps, length(_apps), nspace)
+    end
+    GC.@preserve nspace begin
+        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, nspace))
+    end
+end
+
+# 17. Tools and Debuggers
+
+function tool_init(info=nothing)
+    if info === nothing
+        info = C_NULL
+        len = 0
+    else
+        len = length(info)
+    end
+    r_proc = Ref{API.pmix_proc_t}()
+    @check API.PMIx_tool_init(r_proc, info, len)
+    return r_proc[]
+end
+
+function tool_finalize()
+    @check API.PMIx_tool_finalize()
+end
 
 end # module
