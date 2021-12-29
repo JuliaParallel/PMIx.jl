@@ -121,8 +121,14 @@ function progress()
 end
 
 # 5. Synchronization and Data Access Operations
-
-function fence(procs)
+fence(proc::API.pmix_proc_t, info=nothing) = fence(Ref(proc), info)
+function fence(procs, info=nothing)
+    if info === nothing
+        info = C_NULL
+        len = 0
+    else
+        len = length(info)
+    end
     @check API.PMIx_Fence(procs, length(procs), C_NULL, 0)
 end
 
