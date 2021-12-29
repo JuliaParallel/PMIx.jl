@@ -8,7 +8,7 @@ function main()
     # instruct the tool library to only look for it
 
     info = PMIx.Info(PMIx.API.PMIX_CONNECT_TO_SYSTEM, PMIx.Value(true, PMIx.API.PMIX_BOOL))
-    myproc = PMIx.tool_init(Ref(info))
+    _ = PMIx.tool_init(Ref(info))
 
     # TODO event handler
 

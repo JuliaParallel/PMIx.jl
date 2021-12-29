@@ -74,12 +74,21 @@ function Proc(nspace, rank)
     return proc
 end
 
-function nspace(proc::API.pmix_proc_t)
-    ns = Ref(proc.nspace)
-    GC.@preserve ns begin
-        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, ns))
+nspace(proc::API.pmix_proc_t) = NSpace(proc.nspace)
+
+struct NSpace
+    x::API.pmix_nspace_t
+end
+
+function Base.string(nspace::NSpace)
+    r_nspace = Ref(nspace.x)
+    GC.@preserve r_nspace begin
+        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, r_nspace))
     end
 end
+
+Base.convert(::Type{API.pmix_nspace_t}, ns::NSpace) = ns.x
+Base.show(io::IO, ::MIME"text/plain", ns::NSpace) = print(io, Base.string(ns))
 
 # 4. Client initialization and finalization
 
@@ -204,9 +213,7 @@ function spawn(app::App, job_info=nothing)
         r_app = Ref(Base.unsafe_convert(API.pmix_app_t, capp))
         @check API.PMIx_Spawn(job_info, len, r_app, 1, nspace)
     end
-    GC.@preserve nspace begin
-        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, nspace))
-    end
+    return NSpace(nspace[])
 end
 
 function spawn(apps::Vector{App}, job_info=nothing)
@@ -222,9 +229,7 @@ function spawn(apps::Vector{App}, job_info=nothing)
         _apps = map(capp->Base.unsafe_convert(API.pmix_app_t, capp), capps)
         @check API.PMIx_Spawn(job_info, len, _apps, length(_apps), nspace)
     end
-    GC.@preserve nspace begin
-        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, nspace))
-    end
+    return NSpace(nspace[])
 end
 
 # 17. Tools and Debuggers
