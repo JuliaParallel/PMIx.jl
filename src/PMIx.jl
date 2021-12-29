@@ -7,6 +7,12 @@ struct PMIxException <: Exception
     status::API.pmix_status_t
 end
 
+function Base.showerror(io::IO, pmi::PMIxException)
+    print(io, "PMIxException: ")
+    print(io, unsafe_string(API.PMIx_Error_string(pmi.status)))
+end
+
+
 macro check(ex)
     quote
         status = $(esc(ex))
