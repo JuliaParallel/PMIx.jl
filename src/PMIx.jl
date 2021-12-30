@@ -227,6 +227,23 @@ end
 
 # 8. Publish/Lookup Operations
 # 9. Event Notification
+
+function register(handler; codes=nothing, info=nothing)
+    if info === nothing
+        info = C_NULL
+        len_info = 0
+    else
+        len_info = length(info)
+    end
+    if codes === nothing
+        codes = C_NULL
+        len_codes = 0
+    else
+        len_codes = length(codes)
+    end
+    @check API.PMIx_Register_event_handler(codes, len_codes, info, len_info, handler, C_NULL, C_NULL)
+end
+
 # 10. Data Packing and Unpacking
 # 11. Process Management
 
@@ -319,5 +336,8 @@ end
 function tool_finalize()
     @check API.PMIx_tool_finalize()
 end
+
+# 17.3 IOF 
+include("iof.jl")
 
 end # module

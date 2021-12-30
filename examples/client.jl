@@ -3,6 +3,20 @@ using PMIx
 
 import PMIx: nspace
 
+function notification_fn(evhdlr_registration_id::Csize_t, status::PMIx.API.pmix_status_t, source::Ptr{PMIx.API.pmix_proc_t},
+                         info::Ptr{PMIx.API.pmix_info_t}, ninfo::Csize_t,
+                         results::Ptr{PMIx.API.pmix_info_t}, nresults::Csize_t,
+                         cbfunc::PMIx.API.pmix_event_notification_cbfunc_fn_t, cbdata::Ptr{Cvoid})::Nothing
+
+    if cbfunc != C_NULL
+        ccall(cbfunc, Cvoid, (PMIx.API.pmix_status_t, Ptr{PMIx.API.pmix_info_t}, Csize_t, PMIx.API.pmix_op_cbfunc_t, Ptr{Cvoid}, Ptr{Cvoid}),
+            PMIx.API.PMIX_EVENT_ACTION_COMPLETE, C_NULL, 0, C_NULL, C_NULL,cbdata)
+    end
+
+    @info "Callback called"
+    return nothing
+end
+
 function main()
     pid = Libc.getpid()
     @info "Client running" pid
@@ -16,7 +30,8 @@ function main()
     myproc = PMIx.init()
     @info "Client initialized" ns=nspace(myproc) rank=myproc.rank pid
 
-    # TODO: Register event handler
+    callback = @cfunction(notification_fn, Cvoid, (Csize_t, PMIx.API.pmix_status_t, Ptr{PMIx.API.pmix_proc_t}, Ptr{PMIx.API.pmix_info_t}, Csize_t, Ptr{PMIx.API.pmix_info_t}, Csize_t, Ptr{PMIx.API.pmix_event_notification_cbfunc_fn_t}, Ptr{Cvoid}))
+    PMIx.register(callback)
 
     # job-related info is found in our nspace, assigned to the
     # wildcard rank as it doesn't relate to a specific rank. Setup
