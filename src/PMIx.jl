@@ -241,7 +241,12 @@ function register(handler; codes=nothing, info=nothing)
     else
         len_codes = length(codes)
     end
-    @check API.PMIx_Register_event_handler(codes, len_codes, info, len_info, handler, C_NULL, C_NULL)
+    status = API.PMIx_Register_event_handler(codes, len_codes, info, len_info, handler, C_NULL, C_NULL)
+    if status < 0
+        throw(PMIxException(status))
+    end
+    # otherwise this is our ref ID for this handler
+    return status
 end
 
 # 10. Data Packing and Unpacking
