@@ -1,5 +1,6 @@
 module PMIx
-using  Setfield
+using Setfield
+using ForeignCallbacks
 
 include("api.jl")
 
