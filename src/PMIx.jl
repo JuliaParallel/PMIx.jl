@@ -27,16 +27,82 @@ function pmix_strncopy(dst::Ptr{Cchar}, src::Ptr{Cchar}, len)
     i = 1
     while i <= len
         c = unsafe_load(src, i)
-        unsafe_store!(dst, i, c)
-        if Char(c) == '\0'
+        unsafe_store!(dst, c, i)
+        if c == 0
             break
         end
         i += 1
     end
-    unsafe_store!(dst, i, '\0'%Cchar)
+    unsafe_store!(dst, '\0'%Cchar, i)
+    return nothing
 end
 
 include("value.jl")
+
+struct Key
+    x::API.pmix_key_t
+end
+Base.convert(::Type{API.pmix_key_t}, key::Key) = key.x
+
+function Key(p_src::Ptr{Cchar})
+    r_key = Ref{API.pmix_key_t}()
+    GC.@preserve r_key begin
+        p_dst = Base.unsafe_convert(Ptr{Cchar}, r_key)
+        pmix_strncopy(p_dst, p_src, API.PMIX_MAX_KEYLEN)
+    end
+    return Key(r_key[])
+end
+
+function Key(sym::Symbol)
+    GC.@preserve sym begin
+        return Key(Base.unsafe_convert(Ptr{Cchar}, sym))
+    end
+end
+
+function Key(str::String)
+    GC.@preserve str begin
+        return Key(Base.unsafe_convert(Ptr{Cchar}, str))
+    end
+end
+
+function Base.string(key::Key)
+    r_key = Ref(key.x)
+    GC.@preserve r_key begin
+        return unsafe_string(Base.unsafe_convert(Ptr{Cchar}, r_key))
+    end
+end
+Base.show(io::IO, ::MIME"text/plain", key::Key) = print(io, Base.string(key))
+
+import Base.:(==)
+function ==(akey::Key, bkey::Key)
+    a = akey.x
+    b = bkey.x
+    for i in 1:API.PMIX_MAX_KEYLEN
+        if a[i] != b[i]
+            return false
+        end
+        if a[i] == 0%Cchar && b[i] == 0%Cchar
+            return true
+        end
+    end
+    return true
+end
+function ==(akey::Key, b::Symbol)
+    a = akey.x
+    GC.@preserve b begin
+        b_ptr = Base.unsafe_convert(Ptr{Cchar}, b)
+        for i in 1:API.PMIX_MAX_KEYLEN
+            bchar = unsafe_load(b_ptr, i)
+            if a[i] != bchar
+                return false
+            end
+            if a[i] == 0%Cchar && bchar == 0%Cchar
+                return true
+            end
+        end
+    end
+    return true
+end
 
 function ZeroInfo()
     # Equivalent to PMIX_INFO_CONSTRUCT
@@ -52,13 +118,7 @@ function Info()
 end
 
 function Info(key, value, flags = 0)
-    r_key = Ref{API.pmix_key_t}()
-    GC.@preserve r_key key begin
-        p_src = Base.unsafe_convert(Ptr{Cchar}, key)
-        p_dst = Base.unsafe_convert(Ptr{Cchar}, r_key)
-        pmix_strncopy(p_dst, p_src, API.PMIX_MAX_KEYLEN)
-    end
-    API.pmix_info(r_key[], flags, value)
+    API.pmix_info(Key(key), flags, value)
 end
 
 function Proc()

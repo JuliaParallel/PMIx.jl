@@ -72,6 +72,10 @@ end
 
     str = PMIx.Value("hello", PMIx.API.PMIX_STRING)
     @test convert(String, str) == "hello"
+
+    ptr = PMIx.Value(C_NULL, PMIx.API.PMIX_STRING)
+    @test convert(Ptr{Cvoid}, ptr) == C_NULL
+    @test Base.unsafe_convert(Ptr{Cvoid}, ptr) == C_NULL
 end
 
 @testset "Job size" begin

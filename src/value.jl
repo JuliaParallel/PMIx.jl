@@ -60,7 +60,7 @@ macro get_number(T, PMIX_T, value)
     quote
         let value = $(esc(value))
             if value.type != $API.$(PMIX_T)
-                throw($PMIxException($API.PMIX_ERR_TYPE_MISMATCH))
+                throw($PMIxException($(API.PMIX_ERR_TYPE_MISMATCH)))
             end
             data = Ref(value.data)
             GC.@preserve data begin
@@ -119,7 +119,16 @@ convert(::Type{UInt8}, value::API.pmix_value_t) = @get_number(UInt8, PMIX_UINT8,
 convert(::Type{UInt16}, value::API.pmix_value_t) = @get_number(UInt16, PMIX_UINT16, value)
 convert(::Type{Float32}, value::API.pmix_value_t) = @get_number(Float32, PMIX_FLOAT, value)
 convert(::Type{Float64}, value::API.pmix_value_t) = @get_number(Float64, PMIX_DOUBLE, value)
+convert(::Type{Ptr{Cvoid}}, value::API.pmix_value_t) = @get_number(Ptr{Cvoid}, PMIX_POINTER, value)
 
+function Base.unsafe_convert(::Type{Ptr{Cvoid}}, value::API.pmix_value_t)
+    data = Ref(value.data)
+    GC.@preserve data begin
+        ptr = Base.unsafe_convert(Ptr{Cvoid}, data)
+        result = unsafe_load(reinterpret(Ptr{Ptr{Cvoid}}, ptr))
+    end
+    return result
+end
 
 function get_number(value::API.pmix_value_t)
     if value.type == API.PMIX_SIZE
@@ -150,6 +159,8 @@ function get_number(value::API.pmix_value_t)
         return @get_number(Float32, PMIX_FLOAT, value)
     elseif value.type == API.PMIX_DOUBLE
         return @get_number(Float64, PMIX_DOUBLE, value)
+    elseif value.type == API.PMIX_POINTER
+        return @get_number(Ptr{Cvoid}, PMIX_POINTER, value)
     end
     error("Unkown numeric typed $(value.type)")
 end
