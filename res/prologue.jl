@@ -9,6 +9,8 @@ function __init__()
 end
 
 const pid_t = Cint
+const gid_t = Cuint
+const uid_t = Cuint
 
 const __time_t = Clong
 const __suseconds_t = Clong

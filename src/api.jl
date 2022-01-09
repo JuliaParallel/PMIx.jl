@@ -8,12 +8,13 @@ function __init__()
     # Required for PMIx relocateable binaries
     # TODO: this should be done in PMIx_jll package
     # https://github.com/JuliaPackaging/Yggdrasil/issues/390
-    ENV["PMIX_PREFIX"] = PMIx_jll.artifact_dir
-    # ENV["PMIX_MCA_mca_base_component_path"] = joinpath(PMIx_jll.artifact_dir, "lib", "pmix")
+    ENV["PMIX_INSTALL_PREFIX"] = PMIx_jll.artifact_dir
     nothing
 end
 
 const pid_t = Cint
+const gid_t = Cuint
+const uid_t = Cuint
 
 const __time_t = Clong
 const __suseconds_t = Clong
@@ -245,11 +246,11 @@ end
 
 const pmix_data_type_t = UInt16
 
-struct __JL_Ctag_29
+struct __JL_Ctag_85
     data::NTuple{24, UInt8}
 end
 
-function Base.getproperty(x::Ptr{__JL_Ctag_29}, f::Symbol)
+function Base.getproperty(x::Ptr{__JL_Ctag_85}, f::Symbol)
     f === :flag && return Ptr{Bool}(x + 0)
     f === :byte && return Ptr{UInt8}(x + 0)
     f === :string && return Ptr{Ptr{Cchar}}(x + 0)
@@ -301,14 +302,14 @@ function Base.getproperty(x::Ptr{__JL_Ctag_29}, f::Symbol)
     return getfield(x, f)
 end
 
-function Base.getproperty(x::__JL_Ctag_29, f::Symbol)
-    r = Ref{__JL_Ctag_29}(x)
-    ptr = Base.unsafe_convert(Ptr{__JL_Ctag_29}, r)
+function Base.getproperty(x::__JL_Ctag_85, f::Symbol)
+    r = Ref{__JL_Ctag_85}(x)
+    ptr = Base.unsafe_convert(Ptr{__JL_Ctag_85}, r)
     fptr = getproperty(ptr, f)
     GC.@preserve r unsafe_load(fptr)
 end
 
-function Base.setproperty!(x::Ptr{__JL_Ctag_29}, f::Symbol, v)
+function Base.setproperty!(x::Ptr{__JL_Ctag_85}, f::Symbol, v)
     unsafe_store!(getproperty(x, f), v)
 end
 
@@ -318,7 +319,7 @@ end
 
 function Base.getproperty(x::Ptr{pmix_value}, f::Symbol)
     f === :type && return Ptr{pmix_data_type_t}(x + 0)
-    f === :data && return Ptr{__JL_Ctag_29}(x + 8)
+    f === :data && return Ptr{__JL_Ctag_85}(x + 8)
     return getfield(x, f)
 end
 
@@ -909,6 +910,262 @@ end
 
 function PMIx_Data_decompress(inbytes, size, outbytes, nbytes)
     ccall((:PMIx_Data_decompress, libpmix), Bool, (Ptr{UInt8}, Csize_t, Ptr{Ptr{UInt8}}, Ptr{Csize_t}), inbytes, size, outbytes, nbytes)
+end
+
+function PMIx_tool_init(proc, info, ninfo)
+    ccall((:PMIx_tool_init, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Ptr{pmix_info_t}, Csize_t), proc, info, ninfo)
+end
+
+function PMIx_tool_finalize()
+    ccall((:PMIx_tool_finalize, libpmix), pmix_status_t, ())
+end
+
+function PMIx_tool_attach_to_server(myproc, server, info, ninfo)
+    ccall((:PMIx_tool_attach_to_server, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Ptr{pmix_proc_t}, Ptr{pmix_info_t}, Csize_t), myproc, server, info, ninfo)
+end
+
+function PMIx_tool_disconnect(server)
+    ccall((:PMIx_tool_disconnect, libpmix), pmix_status_t, (Ptr{pmix_proc_t},), server)
+end
+
+function PMIx_tool_get_servers(servers, nservers)
+    ccall((:PMIx_tool_get_servers, libpmix), pmix_status_t, (Ptr{Ptr{pmix_proc_t}}, Ptr{Csize_t}), servers, nservers)
+end
+
+function PMIx_tool_set_server(server, info, ninfo)
+    ccall((:PMIx_tool_set_server, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Ptr{pmix_info_t}, Csize_t), server, info, ninfo)
+end
+
+# typedef void ( * pmix_iof_cbfunc_t ) ( size_t iofhdlr , pmix_iof_channel_t channel , pmix_proc_t * source , pmix_byte_object_t * payload , pmix_info_t info [ ] , size_t ninfo )
+const pmix_iof_cbfunc_t = Ptr{Cvoid}
+
+function PMIx_IOF_pull(procs, nprocs, directives, ndirs, channel, cbfunc, regcbfunc, regcbdata)
+    ccall((:PMIx_IOF_pull, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Csize_t, Ptr{pmix_info_t}, Csize_t, pmix_iof_channel_t, pmix_iof_cbfunc_t, pmix_hdlr_reg_cbfunc_t, Ptr{Cvoid}), procs, nprocs, directives, ndirs, channel, cbfunc, regcbfunc, regcbdata)
+end
+
+function PMIx_IOF_deregister(iofhdlr, directives, ndirs, cbfunc, cbdata)
+    ccall((:PMIx_IOF_deregister, libpmix), pmix_status_t, (Csize_t, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), iofhdlr, directives, ndirs, cbfunc, cbdata)
+end
+
+function PMIx_IOF_push(targets, ntargets, bo, directives, ndirs, cbfunc, cbdata)
+    ccall((:PMIx_IOF_push, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Csize_t, Ptr{pmix_byte_object_t}, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), targets, ntargets, bo, directives, ndirs, cbfunc, cbdata)
+end
+
+# typedef pmix_status_t ( * pmix_server_client_connected_fn_t ) ( const pmix_proc_t * proc , void * server_object , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_client_connected_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_client_connected2_fn_t ) ( const pmix_proc_t * proc , void * server_object , pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_client_connected2_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_client_finalized_fn_t ) ( const pmix_proc_t * proc , void * server_object , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_client_finalized_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_abort_fn_t ) ( const pmix_proc_t * proc , void * server_object , int status , const char msg [ ] , pmix_proc_t procs [ ] , size_t nprocs , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_abort_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_fencenb_fn_t ) ( const pmix_proc_t procs [ ] , size_t nprocs , const pmix_info_t info [ ] , size_t ninfo , char * data , size_t ndata , pmix_modex_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_fencenb_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_dmodex_req_fn_t ) ( const pmix_proc_t * proc , const pmix_info_t info [ ] , size_t ninfo , pmix_modex_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_dmodex_req_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_publish_fn_t ) ( const pmix_proc_t * proc , const pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_publish_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_lookup_fn_t ) ( const pmix_proc_t * proc , char * * keys , const pmix_info_t info [ ] , size_t ninfo , pmix_lookup_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_lookup_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_unpublish_fn_t ) ( const pmix_proc_t * proc , char * * keys , const pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_unpublish_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_spawn_fn_t ) ( const pmix_proc_t * proc , const pmix_info_t job_info [ ] , size_t ninfo , const pmix_app_t apps [ ] , size_t napps , pmix_spawn_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_spawn_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_connect_fn_t ) ( const pmix_proc_t procs [ ] , size_t nprocs , const pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_connect_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_disconnect_fn_t ) ( const pmix_proc_t procs [ ] , size_t nprocs , const pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_disconnect_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_register_events_fn_t ) ( pmix_status_t * codes , size_t ncodes , const pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_register_events_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_deregister_events_fn_t ) ( pmix_status_t * codes , size_t ncodes , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_deregister_events_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_notify_event_fn_t ) ( pmix_status_t code , const pmix_proc_t * source , pmix_data_range_t range , pmix_info_t info [ ] , size_t ninfo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_notify_event_fn_t = Ptr{Cvoid}
+
+# typedef void ( * pmix_connection_cbfunc_t ) ( int incoming_sd , void * cbdata )
+const pmix_connection_cbfunc_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_listener_fn_t ) ( int listening_sd , pmix_connection_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_listener_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_query_fn_t ) ( pmix_proc_t * proct , pmix_query_t * queries , size_t nqueries , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_query_fn_t = Ptr{Cvoid}
+
+# typedef void ( * pmix_tool_connection_cbfunc_t ) ( pmix_status_t status , pmix_proc_t * proc , void * cbdata )
+const pmix_tool_connection_cbfunc_t = Ptr{Cvoid}
+
+# typedef void ( * pmix_server_tool_connection_fn_t ) ( pmix_info_t * info , size_t ninfo , pmix_tool_connection_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_tool_connection_fn_t = Ptr{Cvoid}
+
+# typedef void ( * pmix_server_log_fn_t ) ( const pmix_proc_t * client , const pmix_info_t data [ ] , size_t ndata , const pmix_info_t directives [ ] , size_t ndirs , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_log_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_alloc_fn_t ) ( const pmix_proc_t * client , pmix_alloc_directive_t directive , const pmix_info_t data [ ] , size_t ndata , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_alloc_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_job_control_fn_t ) ( const pmix_proc_t * requestor , const pmix_proc_t targets [ ] , size_t ntargets , const pmix_info_t directives [ ] , size_t ndirs , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_job_control_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_monitor_fn_t ) ( const pmix_proc_t * requestor , const pmix_info_t * monitor , pmix_status_t error , const pmix_info_t directives [ ] , size_t ndirs , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_monitor_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_get_cred_fn_t ) ( const pmix_proc_t * proc , const pmix_info_t directives [ ] , size_t ndirs , pmix_credential_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_get_cred_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_validate_cred_fn_t ) ( const pmix_proc_t * proc , const pmix_byte_object_t * cred , const pmix_info_t directives [ ] , size_t ndirs , pmix_validation_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_validate_cred_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_iof_fn_t ) ( const pmix_proc_t procs [ ] , size_t nprocs , const pmix_info_t directives [ ] , size_t ndirs , pmix_iof_channel_t channels , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_iof_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_stdin_fn_t ) ( const pmix_proc_t * source , const pmix_proc_t targets [ ] , size_t ntargets , const pmix_info_t directives [ ] , size_t ndirs , const pmix_byte_object_t * bo , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_stdin_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_grp_fn_t ) ( pmix_group_operation_t op , char grp [ ] , const pmix_proc_t procs [ ] , size_t nprocs , const pmix_info_t directives [ ] , size_t ndirs , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_grp_fn_t = Ptr{Cvoid}
+
+# typedef pmix_status_t ( * pmix_server_fabric_fn_t ) ( const pmix_proc_t * requestor , pmix_fabric_operation_t op , const pmix_info_t directives [ ] , size_t ndirs , pmix_info_cbfunc_t cbfunc , void * cbdata )
+const pmix_server_fabric_fn_t = Ptr{Cvoid}
+
+struct pmix_server_module_4_0_0_t
+    client_connected::pmix_server_client_connected_fn_t
+    client_finalized::pmix_server_client_finalized_fn_t
+    abort::pmix_server_abort_fn_t
+    fence_nb::pmix_server_fencenb_fn_t
+    direct_modex::pmix_server_dmodex_req_fn_t
+    publish::pmix_server_publish_fn_t
+    lookup::pmix_server_lookup_fn_t
+    unpublish::pmix_server_unpublish_fn_t
+    spawn::pmix_server_spawn_fn_t
+    connect::pmix_server_connect_fn_t
+    disconnect::pmix_server_disconnect_fn_t
+    register_events::pmix_server_register_events_fn_t
+    deregister_events::pmix_server_deregister_events_fn_t
+    listener::pmix_server_listener_fn_t
+    notify_event::pmix_server_notify_event_fn_t
+    query::pmix_server_query_fn_t
+    tool_connected::pmix_server_tool_connection_fn_t
+    log::pmix_server_log_fn_t
+    allocate::pmix_server_alloc_fn_t
+    job_control::pmix_server_job_control_fn_t
+    monitor::pmix_server_monitor_fn_t
+    get_credential::pmix_server_get_cred_fn_t
+    validate_credential::pmix_server_validate_cred_fn_t
+    iof_pull::pmix_server_iof_fn_t
+    push_stdin::pmix_server_stdin_fn_t
+    group::pmix_server_grp_fn_t
+    fabric::pmix_server_fabric_fn_t
+    client_connected2::pmix_server_client_connected2_fn_t
+end
+
+const pmix_server_module_t = pmix_server_module_4_0_0_t
+
+function PMIx_server_init(_module, info, ninfo)
+    ccall((:PMIx_server_init, libpmix), pmix_status_t, (Ptr{pmix_server_module_t}, Ptr{pmix_info_t}, Csize_t), _module, info, ninfo)
+end
+
+function PMIx_server_finalize()
+    ccall((:PMIx_server_finalize, libpmix), pmix_status_t, ())
+end
+
+function PMIx_generate_regex(input, regex)
+    ccall((:PMIx_generate_regex, libpmix), pmix_status_t, (Ptr{Cchar}, Ptr{Ptr{Cchar}}), input, regex)
+end
+
+function PMIx_generate_ppn(input, ppn)
+    ccall((:PMIx_generate_ppn, libpmix), pmix_status_t, (Ptr{Cchar}, Ptr{Ptr{Cchar}}), input, ppn)
+end
+
+function PMIx_server_register_nspace(nspace, nlocalprocs, info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_register_nspace, libpmix), pmix_status_t, (Ptr{Cchar}, Cint, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), nspace, nlocalprocs, info, ninfo, cbfunc, cbdata)
+end
+
+function PMIx_server_deregister_nspace(nspace, cbfunc, cbdata)
+    ccall((:PMIx_server_deregister_nspace, libpmix), Cvoid, (Ptr{Cchar}, pmix_op_cbfunc_t, Ptr{Cvoid}), nspace, cbfunc, cbdata)
+end
+
+function PMIx_server_register_client(proc, uid, gid, server_object, cbfunc, cbdata)
+    ccall((:PMIx_server_register_client, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, uid_t, gid_t, Ptr{Cvoid}, pmix_op_cbfunc_t, Ptr{Cvoid}), proc, uid, gid, server_object, cbfunc, cbdata)
+end
+
+function PMIx_server_deregister_client(proc, cbfunc, cbdata)
+    ccall((:PMIx_server_deregister_client, libpmix), Cvoid, (Ptr{pmix_proc_t}, pmix_op_cbfunc_t, Ptr{Cvoid}), proc, cbfunc, cbdata)
+end
+
+function PMIx_server_setup_fork(proc, env)
+    ccall((:PMIx_server_setup_fork, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Ptr{Ptr{Ptr{Cchar}}}), proc, env)
+end
+
+# typedef void ( * pmix_dmodex_response_fn_t ) ( pmix_status_t status , char * data , size_t sz , void * cbdata )
+const pmix_dmodex_response_fn_t = Ptr{Cvoid}
+
+function PMIx_server_dmodex_request(proc, cbfunc, cbdata)
+    ccall((:PMIx_server_dmodex_request, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, pmix_dmodex_response_fn_t, Ptr{Cvoid}), proc, cbfunc, cbdata)
+end
+
+# typedef void ( * pmix_setup_application_cbfunc_t ) ( pmix_status_t status , pmix_info_t info [ ] , size_t ninfo , void * provided_cbdata , pmix_op_cbfunc_t cbfunc , void * cbdata )
+const pmix_setup_application_cbfunc_t = Ptr{Cvoid}
+
+function PMIx_server_setup_application(nspace, info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_setup_application, libpmix), pmix_status_t, (Ptr{Cchar}, Ptr{pmix_info_t}, Csize_t, pmix_setup_application_cbfunc_t, Ptr{Cvoid}), nspace, info, ninfo, cbfunc, cbdata)
+end
+
+function PMIx_server_setup_local_support(nspace, info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_setup_local_support, libpmix), pmix_status_t, (Ptr{Cchar}, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), nspace, info, ninfo, cbfunc, cbdata)
+end
+
+function PMIx_server_IOF_deliver(source, channel, bo, info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_IOF_deliver, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, pmix_iof_channel_t, Ptr{pmix_byte_object_t}, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), source, channel, bo, info, ninfo, cbfunc, cbdata)
+end
+
+function PMIx_server_collect_inventory(directives, ndirs, cbfunc, cbdata)
+    ccall((:PMIx_server_collect_inventory, libpmix), pmix_status_t, (Ptr{pmix_info_t}, Csize_t, pmix_info_cbfunc_t, Ptr{Cvoid}), directives, ndirs, cbfunc, cbdata)
+end
+
+function PMIx_server_deliver_inventory(info, ninfo, directives, ndirs, cbfunc, cbdata)
+    ccall((:PMIx_server_deliver_inventory, libpmix), pmix_status_t, (Ptr{pmix_info_t}, Csize_t, Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), info, ninfo, directives, ndirs, cbfunc, cbdata)
+end
+
+function PMIx_Register_attributes(_function, attrs)
+    ccall((:PMIx_Register_attributes, libpmix), pmix_status_t, (Ptr{Cchar}, Ptr{Ptr{Cchar}}), _function, attrs)
+end
+
+function PMIx_server_generate_locality_string(cpuset, locality)
+    ccall((:PMIx_server_generate_locality_string, libpmix), pmix_status_t, (Ptr{pmix_cpuset_t}, Ptr{Ptr{Cchar}}), cpuset, locality)
+end
+
+function PMIx_server_generate_cpuset_string(cpuset, cpuset_string)
+    ccall((:PMIx_server_generate_cpuset_string, libpmix), pmix_status_t, (Ptr{pmix_cpuset_t}, Ptr{Ptr{Cchar}}), cpuset, cpuset_string)
+end
+
+function PMIx_server_define_process_set(members, nmembers, pset_name)
+    ccall((:PMIx_server_define_process_set, libpmix), pmix_status_t, (Ptr{pmix_proc_t}, Csize_t, Ptr{Cchar}), members, nmembers, pset_name)
+end
+
+function PMIx_server_delete_process_set(pset_name)
+    ccall((:PMIx_server_delete_process_set, libpmix), pmix_status_t, (Ptr{Cchar},), pset_name)
+end
+
+function PMIx_server_register_resources(info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_register_resources, libpmix), pmix_status_t, (Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), info, ninfo, cbfunc, cbdata)
+end
+
+function PMIx_server_deregister_resources(info, ninfo, cbfunc, cbdata)
+    ccall((:PMIx_server_deregister_resources, libpmix), pmix_status_t, (Ptr{pmix_info_t}, Csize_t, pmix_op_cbfunc_t, Ptr{Cvoid}), info, ninfo, cbfunc, cbdata)
 end
 
 const PMIX_HAVE_VISIBILITY = 1
