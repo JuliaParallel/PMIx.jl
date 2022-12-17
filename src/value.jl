@@ -53,6 +53,12 @@ function Value(data::String, type)
     end
 end
 
+function Value(data::Ptr{Cvoid}, type)
+    value = ZeroValue()
+    value = load(value, data, type)
+    return value
+end
+
 # function xfer()
 # end
 
