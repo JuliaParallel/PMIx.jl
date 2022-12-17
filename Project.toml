@@ -10,5 +10,5 @@ Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 
 [compat]
 CEnum = "0.4"
-Setfield = "0.8"
 PMIx_jll = "4"
+Setfield = "0.8"

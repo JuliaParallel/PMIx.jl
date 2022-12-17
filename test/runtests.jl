@@ -10,10 +10,33 @@ if !haskey(ENV, "PRTE_LAUNCHED")
     end
 
     @testset "Examples" begin
-        example = realpath(joinpath(@__DIR__, "..", "examples", "client.jl"))
-        prrte_jll.prterun() do prterun
-            cmd = `$prterun -np 2 $(Base.julia_cmd()) $example`
-            @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+        examples = [
+            ("client.jl", 2),
+            ("dynamic.jl", 1),
+        ]
+        for (file, np) in examples
+            example = realpath(joinpath(@__DIR__, "..", "examples", file))
+            cmd = `$(prterun()) -np $np $(Base.julia_cmd()) $example`
+            @testset "Example $file" begin
+                @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+            end
+        end
+
+        examples = [
+            "launcher.jl",
+        ]
+        # Start a PRTE session
+        dvm = run(`$(prte()) --system-server`, wait=false)
+        try
+            for file in examples
+                example = realpath(joinpath(@__DIR__, "..", "examples", file))
+                cmd = `$(Base.julia_cmd()) $example`
+                @testset "Example $file" begin
+                    @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
+                end
+            end
+        finally
+            kill(dvm)
         end
     end
 
@@ -42,6 +65,13 @@ end
 
     optional = PMIx.Value(false, PMIx.API.PMIX_BOOL)
     @test !convert(Bool, optional)
+
+    str = PMIx.Value("hello", PMIx.API.PMIX_STRING)
+    @test convert(String, str) == "hello"
+
+    ptr = PMIx.Value(C_NULL, PMIx.API.PMIX_POINTER)
+    @test convert(Ptr{Cvoid}, ptr) == C_NULL
+    @test Base.unsafe_convert(Ptr{Cvoid}, ptr) == C_NULL
 end
 
 @testset "Job size" begin
