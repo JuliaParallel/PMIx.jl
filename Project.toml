@@ -5,10 +5,13 @@ version = "0.1.0"
 
 [deps]
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+ForeignCallbacks = "809b5ff2-8730-47bb-8e19-67299d747c44"
 PMIx_jll = "32165bc3-0280-59bc-8c0b-c33b6203efab"
 Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
 
 [compat]
 CEnum = "0.4"
+ForeignCallbacks = "0.1"
 PMIx_jll = "4"
 Setfield = "0.8"
+julia = "1.7"
